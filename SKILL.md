@@ -44,7 +44,7 @@ Before processing or changing the target, read `references/install-validation.md
 
 If a required capability or permission is missing, explain what is missing, why it is needed, and where the workflow will stop. Ask for authorization before any real modification. Never request, use, or rely on write access to files or subfolders inside the target folder.
 
-Before spending time on real-image processing, run the packaged icon-write probe against a copy of the bundled test folder whenever the current host does not have a valid `icon-write-ready` or `verified` receipt. The probe may change only temporary fixture metadata and must report its execution context. If it returns `nsworkspace_rejected_icon_update` or `Operation not permitted`, classify the host as `icon-write-unavailable`; do not present the real task as fully automatable. Explain that the WorkBuddy background process is not an authorized GUI context, then offer a signed-in GUI Terminal helper or Finder manual fallback. A successful image preflight does not imply that a real folder icon can be written.
+Before spending time on real-image processing, run the packaged icon-write probe against a copy of the bundled test folder whenever the current host does not have a valid `icon-write-ready` or `verified` receipt. The probe may change only temporary fixture metadata and must report its execution context. If it returns `nsworkspace_rejected_icon_update` or `Operation not permitted`, classify the host as `icon-write-unavailable`; do not present the real task as fully automatable inside WorkBuddy. Explain that the WorkBuddy background process is not an authorized GUI context, then offer the packaged Terminal handoff or Finder manual fallback. A successful image preflight does not imply that a real folder icon can be written.
 
 If the platform cannot perform desktop control, it may complete image processing and stop before Finder modification. Report the incomplete state accurately.
 
@@ -114,6 +114,16 @@ Prefer the packaged Objective-C `folder-icon-setter`, which calls the documented
 Continue only when it exits successfully with `icon_status=verified`. This direct route does not authorize any change beyond the confirmed target folder's custom-icon metadata. After success, skip the Finder clipboard steps and continue with icon and contents verification.
 
 If the setter exits with `nsworkspace_rejected_icon_update` or `Operation not permitted`, report the icon-write failure separately from any directory-content read restriction. Do not retry blindly. The likely boundary is macOS TCC or the host's background-process context, not the PNG. The next action must explicitly identify the required context (signed-in GUI Terminal with access to the target parent folder, or Finder UI) and must not claim that running the same helper inside the blocked WorkBuddy process will fix it.
+
+### 6B. WorkBuddy Terminal Handoff
+
+When the WorkBuddy host-process probe is blocked, keep the generated PNG and provide this packaged wrapper for the user to run in the already signed-in `Terminal.app`:
+
+`/absolute/path/to/skill/scripts/terminal-apply.sh /absolute/path/to/final.png /absolute/path/to/confirmed/folder`
+
+The wrapper validates absolute paths, builds the native helper in the Skill's `.build/` directory if needed, prints `execution_context=Terminal.app` and `scope=folder_icon_metadata_only`, then invokes `folder-icon-setter set-and-verify`. If macOS asks Terminal to access Desktop or another protected folder, the user must approve that exact request. The Skill must wait for the terminal output `icon_status=verified` before reporting the icon update as successful. If the wrapper reports `Operation not permitted` or `nsworkspace_rejected_icon_update`, stop and report the Terminal permission failure; do not repeat the same command in WorkBuddy.
+
+The Terminal handoff does not authorize WorkBuddy to read or write the target folder's ordinary contents. If WorkBuddy cannot perform the before/after contents check, say so explicitly and let Terminal/Finder or the user perform that separate verification. The wrapper never places generated images or intermediate files inside the target folder.
 
 Use the clipboard/Finder UI route only as an explicitly reported fallback when the direct API is unavailable or the user specifically requests the Finder UI workflow. If Finder automation permissions are unavailable, stop at the generated PNG and give the user the manual Finder steps; do not describe that state as an automatic success.
 
