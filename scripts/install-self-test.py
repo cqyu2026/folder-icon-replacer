@@ -116,6 +116,52 @@ def snapshot_ordinary_contents(root: Path) -> dict[str, dict[str, Any]]:
     return snapshot
 
 
+def probe_icon_write(
+    skill_dir: Path,
+    work_dir: Path,
+    setter: Path,
+    image: Path,
+) -> dict[str, Any]:
+    """Probe only the packaged temporary fixture, never a user folder."""
+    fixture_source = skill_dir / "tests" / "icon-replacement-test-folder"
+    fixture_copy = work_dir / "icon-write-probe" / "icon-replacement-test-folder"
+    fixture_copy.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(fixture_source, fixture_copy, copy_function=shutil.copy2)
+    before = snapshot_ordinary_contents(fixture_copy)
+    try:
+        result = run([
+            str(setter),
+            "set-and-verify",
+            str(image.resolve()),
+            str(fixture_copy.resolve()),
+        ])
+    except ValidationError as exc:
+        return {
+            "status": "blocked",
+            "execution_context": "host-process",
+            "target_scope": "temporary fixture copy only",
+            "reason": "macOS rejected icon metadata update in the current host process",
+            "detail": str(exc),
+        }
+    after = snapshot_ordinary_contents(fixture_copy)
+    if before != after:
+        raise ValidationError("ordinary fixture contents changed during icon-write probe")
+    metadata = sorted(
+        str(path.relative_to(fixture_copy))
+        for path in fixture_copy.rglob("*")
+        if path.name in ALLOWED_METADATA
+    )
+    return {
+        "status": "verified",
+        "execution_context": "host-process",
+        "target_scope": "temporary fixture copy only",
+        "backend": "NSWorkspace.setIcon",
+        "ordinary_contents_unchanged": True,
+        "allowed_system_metadata": metadata,
+        "setter_output": result.stdout.strip(),
+    }
+
+
 def safe_component(value: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip()).strip("-.")
     return cleaned or "unknown"
@@ -250,15 +296,26 @@ def run_preflight(skill_dir: Path, work_dir: Path, report: dict[str, Any]) -> di
             "gui_helper": str(extractor_app),
         }
         report["completed_level"] = "native-ready"
+    if report["checks"]["foreground_extraction"].get("status") == "verified":
+        selected = Path(report["checks"]["foreground_extraction"]["candidates"][0]["path"])
+        icon_write = probe_icon_write(skill_dir, work_dir, expected_tools["folder_icon_setter"], selected)
+        report["checks"]["icon_write"] = icon_write
+        if icon_write["status"] == "verified":
+            report["completed_level"] = "icon-write-ready"
+        else:
+            report["required_authorizations"].append({
+                "id": "workbuddy-icon-write-context",
+                "reason": "The current host process cannot write custom icon metadata even on the temporary fixture copy.",
+                "scope": "run the helper from a signed-in GUI context with access to the target parent folder",
+                "required_flag": "use-gui-context-or-finder-fallback",
+            })
     report["installation_status"] = "authorization-required"
-    report["required_authorizations"] = [
-        {
-            "id": "isolated-e2e-icon-test",
-            "reason": "If needed, run Apple Vision in the signed-in GUI session, then set and verify a custom icon only on a temporary fixture copy.",
-            "scope": "temporary fixture copy; no user folder",
-            "required_flag": "--authorize-e2e",
-        }
-    ]
+    report["required_authorizations"].append({
+        "id": "isolated-e2e-icon-test",
+        "reason": "Run Apple Vision and set a custom icon only on a temporary fixture copy.",
+        "scope": "temporary fixture copy; no user folder",
+        "required_flag": "--authorize-e2e",
+    })
     return expected_tools
 
 
@@ -361,7 +418,14 @@ def main() -> int:
                 exit_code = 0
                 preserve_workdir = args.keep_workdir
         else:
-            report["next_action"] = "Ask the user before running the isolated e2e icon test."
+            icon_write = report["checks"].get("icon_write", {})
+            if icon_write.get("status") == "blocked":
+                report["next_action"] = (
+                    "Image processing is ready, but icon writing is unavailable in this host process. "
+                    "Use a signed-in GUI context or Finder fallback before real-folder work; ask before isolated e2e."
+                )
+            else:
+                report["next_action"] = "Ask the user before running the isolated e2e icon test."
             exit_code = 0
     except ValidationError as exc:
         report["errors"].append(str(exc))

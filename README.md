@@ -15,7 +15,7 @@ A macOS skill for replacing one user-confirmed folder icon from either a prepare
 
 The package includes a self-test. Installation has two levels:
 
-1. `preflight` checks package integrity, JPG support, native tool compilation, and the local runtime. It has no side effects.
+1. `preflight` checks package integrity, JPG support, native tool compilation, the local runtime, and—when image extraction is available—icon writing on a temporary fixture copy. It has no user-folder side effects.
 2. `e2e` requires explicit authorization because it runs Apple Vision and changes only the icon metadata of a temporary copy of the bundled test folder. It verifies that ordinary contents are unchanged and writes a durable receipt under `~/Library/Application Support/folder-icon-replacer/verification/`.
 
 From the installed skill directory:

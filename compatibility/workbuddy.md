@@ -2,7 +2,7 @@
 
 ## Status
 
-未验证。
+图片处理已验证；WorkBuddy 后台进程的真实文件夹图标写入仍需单独验证。
 
 ## Environment Check (2026-08-26)
 
@@ -31,6 +31,12 @@
 `python3 scripts/install-self-test.py --stage preflight --host workbuddy --host-version 5.3.11`
 
 展示 JSON 报告并获得用户明确授权后，才运行带 `--authorize-e2e` 的隔离端到端测试。
+
+重点检查报告中的 `checks.icon_write`：
+
+- `verified` 表示当前 WorkBuddy 进程对临时夹具具备 `NSWorkspace.setIcon` 写入能力。
+- `blocked` 或 `nsworkspace_rejected_icon_update` 表示图片能力可用，但后台进程不能自动写真实文件夹图标；应切换到登录 GUI Terminal 或 Finder 手动粘贴。
+- 不能因为 Apple Vision 和透明 PNG 验证通过，就把 WorkBuddy 标记为完整自动化可用。
 
 ## Required Evidence
 

@@ -44,6 +44,8 @@ Before processing or changing the target, read `references/install-validation.md
 
 If a required capability or permission is missing, explain what is missing, why it is needed, and where the workflow will stop. Ask for authorization before any real modification. Never request, use, or rely on write access to files or subfolders inside the target folder.
 
+Before spending time on real-image processing, run the packaged icon-write probe against a copy of the bundled test folder whenever the current host does not have a valid `icon-write-ready` or `verified` receipt. The probe may change only temporary fixture metadata and must report its execution context. If it returns `nsworkspace_rejected_icon_update` or `Operation not permitted`, classify the host as `icon-write-unavailable`; do not present the real task as fully automatable. Explain that the WorkBuddy background process is not an authorized GUI context, then offer a signed-in GUI Terminal helper or Finder manual fallback. A successful image preflight does not imply that a real folder icon can be written.
+
 If the platform cannot perform desktop control, it may complete image processing and stop before Finder modification. Report the incomplete state accurately.
 
 Do not request broad permissions in advance. Run checks that do not mutate external state automatically, explain each missing permission when it is actually needed, and ask before the isolated installation E2E test or any real folder icon update. Verification on one host, Mac, Skill version, or helper build does not transfer to another.
@@ -111,7 +113,9 @@ Prefer the packaged Objective-C `folder-icon-setter`, which calls the documented
 
 Continue only when it exits successfully with `icon_status=verified`. This direct route does not authorize any change beyond the confirmed target folder's custom-icon metadata. After success, skip the Finder clipboard steps and continue with icon and contents verification.
 
-Use the clipboard/Finder UI route only as an explicitly reported fallback when the direct API is unavailable or the user specifically requests the Finder UI workflow.
+If the setter exits with `nsworkspace_rejected_icon_update` or `Operation not permitted`, report the icon-write failure separately from any directory-content read restriction. Do not retry blindly. The likely boundary is macOS TCC or the host's background-process context, not the PNG. The next action must explicitly identify the required context (signed-in GUI Terminal with access to the target parent folder, or Finder UI) and must not claim that running the same helper inside the blocked WorkBuddy process will fix it.
+
+Use the clipboard/Finder UI route only as an explicitly reported fallback when the direct API is unavailable or the user specifically requests the Finder UI workflow. If Finder automation permissions are unavailable, stop at the generated PNG and give the user the manual Finder steps; do not describe that state as an automatic success.
 
 ### 6A. Clipboard Fallback Only
 
@@ -192,7 +196,7 @@ Installation and verification are separate states. File copying alone means `ins
 
 `python3 scripts/install-self-test.py --stage preflight --host <host> --host-version <version>`
 
-The preflight validates package integrity, fixture hashes, native compilation, JPG decoding, Apple Vision extraction, candidate numbering, and real PNG transparency. It may create outputs only in a temporary working directory and must not change any folder icon.
+The preflight validates package integrity, fixture hashes, native compilation, JPG decoding, Apple Vision extraction, candidate numbering, real PNG transparency, and (when extraction succeeds) an icon-write probe against a temporary copy of the bundled fixture. The probe is not a user-folder operation; it may create only allowed system metadata on that temporary copy and must verify ordinary contents remain unchanged. Preflight must report icon-write capability separately from image capability.
 
 If preflight passes, show its report and ask the user before the isolated E2E test. Only after explicit approval run:
 
@@ -209,7 +213,7 @@ Use the bundled test resources:
 
 Treat the bundled target fixture as a read-only master. Copy it to a unique temporary directory for E2E testing, record the copy's ordinary names, structure, sizes, modification times, checksums, and permissions, and compare them afterward. Allow only macOS/Finder system metadata required for the icon or display state, such as `Icon` or `.DS_Store`. The installation test passes only if JPG-to-transparent-PNG conversion, icon replacement, target verification, ordinary-contents protection, and final reporting all pass.
 
-Record the Skill version and path, host and host version, macOS version, architecture, native helper hashes, check results, authorization state, and next action. Preflight reports are temporary; an authorized E2E may write its disclosed verification receipt under the user's Application Support directory. A receipt is valid only for that combination. Use `installation_status=verified` only after the isolated E2E test passes. If authorization is declined, report `authorization-required` or `partial`; do not misreport the files as uninstalled.
+Record the Skill version and path, host and host version, macOS version, architecture, execution context, native helper hashes, check results, authorization state, and next action. Preflight reports are temporary; an authorized E2E may write its disclosed verification receipt under the user's Application Support directory. A receipt is valid only for that combination. Use `installation_status=verified` only after the isolated E2E test passes. If image processing succeeds but the icon-write probe is blocked, report `authorization-required` or `partial` with `icon-write-unavailable`; do not misreport the Skill as fully usable or the files as uninstalled.
 
 ## Completion Criteria
 
