@@ -9,6 +9,7 @@ An installed Skill is not considered verified until the host-specific installati
 - `capability-ready`: all `native-ready` checks plus Apple Vision extraction, candidate naming, and transparent PNG validation passed without changing a folder icon.
 - `icon-write-ready`: image capability checks passed and `NSWorkspace.setIcon` successfully updated only a temporary fixture copy; this does not authorize a real user folder.
 - `icon-write-unavailable`: image capability checks passed but the temporary icon-write probe was rejected by macOS or the host process; automatic folder replacement is not verified.
+- `terminal-handoff-required`: WorkBuddy cannot write the icon in its background process; the packaged Terminal wrapper must be run in a signed-in GUI Terminal context.
 - `authorization-required`: the next test changes only the icon metadata of a temporary fixture copy and requires explicit user approval.
 - `verified`: the isolated end-to-end icon test passed and ordinary fixture contents remained unchanged.
 - `partial`: a documented optional capability is unavailable, while a supported degraded route remains.
@@ -34,7 +35,7 @@ Replace the host fields for WorkBuddy or another host. Never reuse a verificatio
 
 The `--authorize-e2e` flag authorizes launching the packaged background-only extractor in the signed-in GUI session when the host process cannot access Apple Vision, plus a custom-icon change on a temporary copy of `tests/icon-replacement-test-folder`. It does not authorize changing a user folder, installing network dependencies, enabling broad macOS privacy permissions, or controlling Finder UI.
 
-If the host requires a macOS permission prompt, explain the exact permission and why it is needed before asking the user. Refusal leaves the installation at `authorization-required`, `icon-write-unavailable`, or `partial`; it does not erase the installed files. A WorkBuddy background-process denial must not be fixed by repeating the same command in that process.
+If the host requires a macOS permission prompt, explain the exact permission and why it is needed before asking the user. Refusal leaves the installation at `authorization-required`, `icon-write-unavailable`, `terminal-handoff-required`, or `partial`; it does not erase the installed files. A WorkBuddy background-process denial must not be fixed by repeating the same command in that process.
 
 ## Report Requirements
 
