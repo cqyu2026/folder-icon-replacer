@@ -36,6 +36,7 @@
 
 - `verified` 表示当前 WorkBuddy 进程对临时夹具具备 `NSWorkspace.setIcon` 写入能力。
 - `blocked` 或 `nsworkspace_rejected_icon_update` 表示图片能力可用，但后台进程不能自动写真实文件夹图标；应切换到登录 GUI Terminal 或 Finder 手动粘贴。
+- WorkBuddy 遇到该状态时应提供 `scripts/terminal-apply.sh` 的完整命令；用户在登录的 Terminal.app 中执行，并将包含 `icon_status=verified` 的输出返回给 WorkBuddy。
 - 不能因为 Apple Vision 和透明 PNG 验证通过，就把 WorkBuddy 标记为完整自动化可用。
 
 ## Required Evidence
