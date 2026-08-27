@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mac Folder Icon Replacer"
+  short_description: "Safely replace one macOS folder icon from an image"
+  default_prompt: "Use $mac-folder-icon-replacer to turn an image into a transparent PNG and safely replace the icon of one confirmed macOS folder."

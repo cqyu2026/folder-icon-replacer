@@ -1,0 +1,2 @@
+This nested file verifies that files inside subfolders are not modified.
+Its content must remain unchanged.
