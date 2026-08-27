@@ -9,6 +9,7 @@ A macOS skill for replacing one user-confirmed folder icon from either a prepare
 - Multiple detected subjects are exported as individually numbered `candidate-01.png`, `candidate-02.png`, and so on. The user chooses by number before any icon is changed.
 - Visible text is treated as annotation by default, not as an icon subject.
 - Icon mutation uses native `NSWorkspace.setIcon` first. Finder/clipboard automation is only a fallback.
+- If a WorkBuddy background process is blocked by macOS, `scripts/terminal-apply.sh` hands the same verified operation to the signed-in `Terminal.app` context.
 - Ordinary files and subfolders inside the target folder are never modified.
 
 ## Installation validation
@@ -24,6 +25,8 @@ From the installed skill directory:
 python3 scripts/install-self-test.py --stage preflight
 python3 scripts/install-self-test.py --stage e2e --authorize-e2e
 ```
+
+For a real WorkBuddy task whose icon-write probe is blocked, run the generated `scripts/terminal-apply.sh` command in Terminal.app and return the output containing `icon_status=verified`.
 
 If the host blocks Apple Vision during preflight, the result is `authorization-required` with `native-ready`; the authorized E2E run must be performed in the host's approved execution context.
 
