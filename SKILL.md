@@ -1,13 +1,13 @@
 ---
 name: mac-folder-icon-replacer
-description: Replace the icon of one user-confirmed macOS folder from an input image by removing the background, generating a transparent PNG, and safely applying it through Finder. Check capabilities and permissions first, require confirmation at defined checkpoints, and never modify files or subfolders inside the target folder.
+description: Replace one user-confirmed macOS folder icon from a prepared transparent PNG or a raw image. Validate the installation first, skip background removal for a valid subject-only transparent PNG, separate and number multiple subjects, require approval before icon mutation, and never modify ordinary files or subfolders inside the target folder.
 ---
 
 # Mac Folder Icon Replacer
 
 ## Purpose
 
-Replace the custom icon of one user-confirmed ordinary macOS folder using an input image. The workflow must produce a transparent PNG, apply it through the available Finder or desktop-control capability, and verify that the folder icon changed without changing anything inside the folder.
+Replace the custom icon of one user-confirmed ordinary macOS folder using an input image. The workflow must produce or validate a transparent PNG, prefer the packaged native icon setter over clipboard UI automation, and verify that the folder icon changed without changing ordinary contents inside the folder.
 
 ## Scope and Non-goals
 
@@ -24,20 +24,29 @@ Require:
 
 Do not infer a target from a vague name, recent-item list, or an ambiguous search result.
 
+Classify the image before processing:
+
+- `prepared-transparent-png`: a real PNG containing visible subject pixels and at least one transparent or semi-transparent pixel. If the user confirms it already contains only the intended subject, skip background removal.
+- `raw-image-auto`: JPG/JPEG, WEBP, an opaque PNG, or any image that still contains a background. On macOS 14 or newer, prefer the packaged Apple Vision foreground extractor.
+- `image-plus-mask`: an image and a user-supplied mask that can deterministically create the alpha channel.
+- `rembg-fallback`: optional only when the native route is unavailable and the user explicitly approves dependency installation. Never install it implicitly during the main workflow.
+
 ## Capability and Permission Preflight
 
-Before processing or changing the target, check whether the current agent can:
+Before processing or changing the target, read `references/install-validation.md`. If this Skill version has no valid verification receipt for the current host and Mac, run the packaged `preflight` self-test. Before processing or changing the target, also check whether the current agent can:
 
 - read the input image;
-- remove or process the image background and output PNG with transparency;
+- inspect actual alpha pixels, process a raw background when required, and output PNG with transparency;
 - control the macOS desktop or Finder sufficiently to locate the folder, open Get Info, select the top icon, paste, and inspect the result;
-- use a macOS-native clipboard bridge (such as AppKit/NSPasteboard or an equivalent trusted image-data API) to write the selected PNG as image data and read it back for verification;
+- compile and use the packaged native tools, including Apple Vision extraction on macOS 14+ and `NSWorkspace.setIcon` for the primary icon update path;
 - access the target folder and modify only its icon metadata;
 - request user authorization when a required capability or permission is unavailable.
 
 If a required capability or permission is missing, explain what is missing, why it is needed, and where the workflow will stop. Ask for authorization before any real modification. Never request, use, or rely on write access to files or subfolders inside the target folder.
 
 If the platform cannot perform desktop control, it may complete image processing and stop before Finder modification. Report the incomplete state accurately.
+
+Do not request broad permissions in advance. Run checks that do not mutate external state automatically, explain each missing permission when it is actually needed, and ask before the isolated installation E2E test or any real folder icon update. Verification on one host, Mac, Skill version, or helper build does not transfer to another.
 
 ## Safety Boundary
 
@@ -63,7 +72,9 @@ Request confirmation:
 
 ### 1. Receive and Validate the Image
 
-Read one input image. Accept common readable image formats, including JPG/JPEG, PNG, and WEBP when supported. Do not require pre-existing transparency.
+Read one input image. Accept common readable image formats, including JPG/JPEG, PNG, and WEBP when supported. Inspect file contents rather than trusting the extension. A JPG converted to PNG remains opaque unless a mask or segmentation step creates transparency.
+
+For a claimed prepared transparent PNG, verify that it is actually PNG, contains visible pixels, and has at least one pixel with alpha below 255. An RGBA image whose alpha is 255 everywhere is opaque and must not use the skip route. When the prepared PNG is confirmed to contain only the intended subject, record `background_removal=skipped` and continue with normalization.
 
 Stop only when the file cannot be read, is invalid or corrupted, has no recognizable subject after reasonable processing, or the current agent lacks image-processing capability. Do not reject low resolution, complex backgrounds, multiple subjects, small subjects, or complex edges without first attempting optimization.
 
@@ -73,9 +84,9 @@ When needed, attempt suitable improvements such as upscaling, subject enhancemen
 
 ### 3. Extract Candidate Subjects
 
-If there is one clear non-text subject, keep a single processing path and do not create numbered candidates. If there are multiple reasonably separable non-text subjects, extract every subject independently into its own transparent candidate PNG. Do not return one combined sheet or a single composite candidate when separate extraction is possible. Do not silently merge, delete, or choose subjects when multiple meaningful candidates exist. Treat readable or decorative text as non-subject content by default, even when it is visually prominent; include it only after the user explicitly requests it.
+If there is one clear non-text subject, keep a single processing path and do not create numbered candidates. If there are multiple reasonably separable non-text subjects, extract every subject independently into its own transparent candidate PNG. Do not return one combined sheet or a single composite candidate when separate extraction is possible. Do not silently merge, delete, or choose subjects when multiple meaningful candidates exist. Treat readable or decorative text as non-subject content by default, even when it is visually prominent; include it only after the user explicitly requests it. Text printed on or inseparable from a selected physical subject is not automatically erased.
 
-For a multi-subject result, use stable two-digit filenames such as `candidate-01.png`, `candidate-02.png`, and `candidate-03.png`. The displayed candidate number, filename, preview, and description must refer to the same extracted subject. Keep these files outside the target folder.
+For a multi-subject result, use stable two-digit filenames such as `candidate-01.png`, `candidate-02.png`, and `candidate-03.png`. Create `candidates.json` with the same IDs and absolute file paths. The displayed candidate number, filename, preview, description, and manifest entry must refer to the same extracted subject. Keep these files outside the target folder. If the manifest is missing, a listed file is missing, the numbering is inconsistent, or a candidate fails transparent-PNG validation, stop before asking the user to choose.
 
 ### 4. Let the User Select a Subject
 
@@ -92,11 +103,21 @@ Generate a new PNG without overwriting the original input. Verify that:
 
 Show the result and output location. Obtain the required confirmation before Finder modification. Keep intermediate files outside the target folder.
 
-### 6. Prepare and Verify the Image Clipboard
+### 6. Prepare the Icon Application Backend
+
+Prefer the packaged Objective-C `folder-icon-setter`, which calls the documented AppKit `NSWorkspace.setIcon` API. Build native tools locally with `scripts/build-native-tools.sh` when a compatible executable is not already available. After target and final-image confirmation, invoke:
+
+`folder-icon-setter set-and-verify /absolute/path/to/final.png /absolute/path/to/folder`
+
+Continue only when it exits successfully with `icon_status=verified`. This direct route does not authorize any change beyond the confirmed target folder's custom-icon metadata. After success, skip the Finder clipboard steps and continue with icon and contents verification.
+
+Use the clipboard/Finder UI route only as an explicitly reported fallback when the direct API is unavailable or the user specifically requests the Finder UI workflow.
+
+### 6A. Clipboard Fallback Only
 
 Do not rely on a viewer's focus, a simulated copy shortcut, or a file drag as the primary automation path. On macOS, use a native clipboard bridge to clear the general pasteboard and write the selected final PNG as raster image data, exposing a Finder-compatible image representation such as PNG or TIFF. A file URL may be included as auxiliary metadata, but it must never be the only representation.
 
-Invoke the installed bridge with `macos/clipboard-bridge set-and-verify /absolute/path/to/final.png`. Read the pasteboard back before opening or modifying the Finder target. Continue only when the command exits successfully with `clipboard_status=verified`, the pasteboard advertises an image representation, the image can be decoded or rendered, the decoded image matches the selected final PNG by dimensions and a deterministic content comparison, and the pasteboard was written after the current final PNG was generated. If any check fails, clear and rebuild the image clipboard. Do not open Get Info or paste while the clipboard is unverified. Keep the clipboard bridge platform-specific and isolated from the platform-neutral image and safety logic.
+Invoke the installed bridge with `clipboard-bridge set-and-verify /absolute/path/to/final.png`. Read the pasteboard back before opening or modifying the Finder target. Continue only when the command exits successfully with `clipboard_status=verified`, the pasteboard advertises an image representation, the image can be decoded or rendered, the decoded image matches the selected final PNG by dimensions and a deterministic content comparison, and the pasteboard was written after the current final PNG was generated. If any check fails, clear and rebuild the image clipboard. Do not open Get Info or paste while the clipboard is unverified. Keep the clipboard bridge platform-specific and isolated from the platform-neutral image and safety logic.
 
 ### 7. Confirm the Target Folder
 
@@ -111,6 +132,8 @@ Locate only the already confirmed folder using its full path or the currently se
 After locating it, re-check the name, full path, and object type. Do not operate on the folder's contents during locating.
 
 ### 9. Open Get Info
+
+This and the following paste steps apply only to the clipboard/Finder UI fallback. The direct `NSWorkspace.setIcon` route skips them.
 
 Open Get Info for the confirmed folder using the available Finder capability. Verify that the window corresponds to the confirmed folder by checking its name, path or parent context, icon, and object type. If it does not match or cannot be confirmed, stop and close the wrong window.
 
@@ -165,14 +188,28 @@ Use `成功` only when the icon update and ordinary-contents protection verifica
 
 ## Installation Self-test
 
-After installation, use the bundled test resources:
+Installation and verification are separate states. File copying alone means `installed`, not `verified`. Read `references/install-validation.md` and run the packaged no-side-effect stage immediately after installation:
+
+`python3 scripts/install-self-test.py --stage preflight --host <host> --host-version <version>`
+
+The preflight validates package integrity, fixture hashes, native compilation, JPG decoding, Apple Vision extraction, candidate numbering, and real PNG transparency. It may create outputs only in a temporary working directory and must not change any folder icon.
+
+If preflight passes, show its report and ask the user before the isolated E2E test. Only after explicit approval run:
+
+`python3 scripts/install-self-test.py --stage e2e --authorize-e2e --host <host> --host-version <version>`
+
+The authorization covers only a temporary copy of the bundled fixture folder. It does not authorize a real user folder, broad macOS permissions, network dependency installation, or Finder UI control.
+
+Use the bundled test resources:
 
 - `tests/skill-test-image.jpg` as the JPG input;
 - `tests/icon-replacement-test-folder/` as the ordinary target folder;
 - `tests/skill-test-text.txt` and `tests/skill-test-document.docx` as fixed bundled resources whose contents must remain unchanged;
 - `tests/icon-replacement-test-folder/test-content.txt` and `tests/icon-replacement-test-folder/nested/nested-content.txt` as target-folder contents that must remain unchanged.
 
-Before testing, record the target fixture's ordinary names, structure, sizes, modification times, checksums, and permissions. After testing, compare them. Do not add runtime files to the target fixture. Allow only macOS/Finder system metadata required for the icon or display state, such as `Icon` or `.DS_Store`. The installation test passes only if JPG-to-transparent-PNG conversion, icon replacement, target verification, ordinary-contents protection, and final reporting all pass.
+Treat the bundled target fixture as a read-only master. Copy it to a unique temporary directory for E2E testing, record the copy's ordinary names, structure, sizes, modification times, checksums, and permissions, and compare them afterward. Allow only macOS/Finder system metadata required for the icon or display state, such as `Icon` or `.DS_Store`. The installation test passes only if JPG-to-transparent-PNG conversion, icon replacement, target verification, ordinary-contents protection, and final reporting all pass.
+
+Record the Skill version and path, host and host version, macOS version, architecture, native helper hashes, check results, authorization state, and next action. Preflight reports are temporary; an authorized E2E may write its disclosed verification receipt under the user's Application Support directory. A receipt is valid only for that combination. Use `installation_status=verified` only after the isolated E2E test passes. If authorization is declined, report `authorization-required` or `partial`; do not misreport the files as uninstalled.
 
 ## Completion Criteria
 

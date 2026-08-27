@@ -7,9 +7,9 @@ description: Replace one user-confirmed macOS folder icon from an input image by
 
 This is the WorkBuddy workspace discovery entry for the shared skill.
 
-Before acting, load and follow the canonical instructions in:
+Resolve this adapter directory from `${CODEBUDDY_SKILL_DIR}`. Before acting, load and follow the canonical instructions at:
 
-`mac-folder-icon-replacer/SKILL.md`
+`${CODEBUDDY_SKILL_DIR}/../../../SKILL.md`
 
 Treat that file as authoritative for:
 
@@ -21,5 +21,8 @@ Treat that file as authoritative for:
 - the rule that ordinary files and subfolders inside the target folder are read-only;
 - allowed macOS/Finder metadata such as `Icon` and `.DS_Store`;
 - post-operation verification and final status reporting.
+- the two-stage installation validation protocol in `${CODEBUDDY_SKILL_DIR}/../../../references/install-validation.md`.
 
 If the canonical file cannot be read, stop and report that the Skill is not safely loadable. Do not proceed using this adapter alone.
+
+After installation, run the canonical package's `scripts/install-self-test.py --stage preflight --host workbuddy --host-version <version>`. Show the report and ask the user before running the isolated E2E stage with `--authorize-e2e`.

@@ -1,4 +1,28 @@
-# macOS Clipboard Bridge
+# macOS Native Tools
+
+Build all Objective-C helpers with Apple Command Line Tools; full Xcode is not required:
+
+```sh
+../scripts/build-native-tools.sh /absolute/output-directory
+```
+
+The build includes:
+
+- `image-inspector`: verifies actual file type and alpha pixel range;
+- `foreground-extractor`: uses Apple Vision foreground instance masks on macOS 14+ and creates stable numbered PNG candidates plus `candidates.json`;
+- `foreground-extractor.app`: background-only GUI-session wrapper for hosts whose sandbox cannot load the Vision ANE model;
+- `folder-icon-setter`: applies and reads back a folder icon with `NSWorkspace.setIcon`;
+- `clipboard-bridge`: Finder UI fallback only.
+
+The preferred icon path is:
+
+```sh
+./folder-icon-setter set-and-verify /absolute/final.png /absolute/folder
+```
+
+Run it only after the user confirms the exact target and final PNG. The installation E2E test invokes it only on a temporary copy of the bundled fixture.
+
+## Clipboard fallback
 
 `ClipboardBridge.swift` writes the selected PNG to `NSPasteboard.general` as
 image data, reads it back, and refuses to report success unless the decoded
@@ -30,6 +54,6 @@ Run:
 The bridge only touches the general clipboard. It does not open Finder and
 does not modify folders or their contents.
 
-The Finder workflow must stop unless the command exits with
+The fallback Finder workflow must stop unless the command exits with
 `clipboard_status=verified`. The executable is architecture-specific; rebuild
 it on the target Mac if the installed binary does not match the machine.

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "fixture_version": "1.0.0",
+  "files": {
+    "skill-test-image.jpg": "fb5ad8959d2614ef4fdf47a5fa42647561095d92a21e4f774a5707daf85b43de",
+    "skill-test-text.txt": "f936a975c0b7c4b31bfbc47b4441440d16c790cd3eb22c07bda6cb8d54bde81c",
+    "skill-test-document.docx": "7adbe864430d1cd94c30c0e508c25733c4a6cfb106d12130dd9e4cc076cbb8f8",
+    "icon-replacement-test-folder/test-content.txt": "fb43bd836c5da715aa109e030c08b79f8c255d681820719ebdc3a57b0e493081",
+    "icon-replacement-test-folder/nested/nested-content.txt": "49a4c13fb05b62b3e66c4a22f6ba1f5c9a748a3f5620a85816a3beafe7b5842d"
+  },
+  "allowed_system_metadata": [
+    ".DS_Store",
+    "Icon\r"
+  ]
+}

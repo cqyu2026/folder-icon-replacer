@@ -2,9 +2,20 @@
 
 ## Status
 
-已验证（基于本项目此前完成的真实端到端测试）。
+版本 1.1.0：已验证。安装副本完成授权后的隔离 E2E，并生成宿主绑定 JSON 凭据。
 
-## Verified Scope
+## 1.1.0 Preflight Scope
+
+- 固定测试资源 SHA-256 校验通过
+- Objective-C 原生工具编译通过
+- JPG 解码和不透明状态校验通过
+- WorkBuddy/Codex 共用自检脚本可运行
+- 未授权调用 E2E 时正确停止为 `authorization-required`
+- 当前 Codex 宿主进程无法加载 Apple Vision ANE subject-lifting 模型；已设计为经授权后在登录 GUI 会话重试
+- 授权后的非受限安装验证中，Apple Vision 生成透明候选，`NSWorkspace.setIcon` 更新临时夹具副本图标，普通内容保持不变
+- 凭据：`~/Library/Application Support/folder-icon-replacer/verification/codex-1.1.0-arm64.json`
+
+## Historical Verified Scope
 
 - JPG 转透明 PNG
 - Finder 目标文件夹选择和“显示简介”流程
@@ -15,4 +26,4 @@
 
 ## Notes
 
-验证结果不得扩展解释为其他 Agent 已兼容。具体运行环境、权限和测试证据应在发布前补充到项目发布记录中。
+1.1.0 Codex 结果不得扩展解释为 WorkBuddy 或另一台 Mac 已兼容；它们必须各自运行相同验证协议。

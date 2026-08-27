@@ -14,6 +14,8 @@
 - 应用检查时未运行。
 - 官方文档显示 WorkBuddy/CodeBuddy 支持 `SKILL.md`，工作区 Skill 路径为 `.codebuddy/skills/<skill-name>/SKILL.md`，并支持在设置页通过“导入 Skill”导入网络获取的 Skill。
 - 结论：已确认存在可复核的加载方案，但尚未在本机 WorkBuddy 中实际导入和运行，因此仍未验证端到端兼容性。
+- 既有实测显示 WorkBuddy 临时安装 `rembg` 时受 NumPy/PyPI 网络与 SSL 问题阻断；1.1.0 已取消主流程中的隐式依赖安装。
+- 1.1.0 适配入口使用 `${CODEBUDDY_SKILL_DIR}/../../../SKILL.md`，已在项目布局中完成路径解析检查。
 
 ## Root Cause of Earlier Blocker
 
@@ -23,6 +25,12 @@
 
 1. 通过 WorkBuddy 设置页的“导入 Skill”导入该 Skill 文件夹或压缩包。
 2. 在测试工作区内放置 `.codebuddy/skills/mac-folder-icon-replacer/SKILL.md`，从该工作区启动任务。
+
+加载后先运行：
+
+`python3 scripts/install-self-test.py --stage preflight --host workbuddy --host-version 5.3.11`
+
+展示 JSON 报告并获得用户明确授权后，才运行带 `--authorize-e2e` 的隔离端到端测试。
 
 ## Required Evidence
 
