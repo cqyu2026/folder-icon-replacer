@@ -1,115 +1,51 @@
 ---
 name: mac-folder-icon-replacer
-description: Automatically replace the custom icon of one already-confirmed ordinary macOS folder from an image path. Return success when the icon update is verified; on a permission failure, return a ready-to-paste Terminal.app command.
+description: Set one confirmed ordinary macOS folder's custom icon from a verified transparent PNG, or extract a JPEG subject using available macOS tools. Also supports explicitly requested matching icon packs. Reject background residue before delivery or application.
 ---
 
 # Mac Folder Icon Replacer
 
-## Task Contract
+Use the installed directory containing this file as the package root. All linked scripts and resources are relative to it; do not assume a project checkout, a host-specific environment variable, or a particular agent tool name. Read [platform installation](compatibility/platform-install.md) when installing or diagnosing discovery.
 
-The user provides exactly two inputs:
+## Scope and capabilities
 
-1. An image path.
-2. The full path of an already-confirmed ordinary macOS folder.
+Use one readable local image and one user-confirmed absolute ordinary folder path. If the user has not chosen direct image use or a material pack, ask for that choice once. An existing choice or explicit direct replacement request is sufficient. Do not infer a folder from a suggested icon meaning. Never read, enumerate, or write the target's ordinary contents. Reject App bundles, other packages, protected paths, symlinks, mount points, and nonlocal volumes.
 
-The expected result is an updated folder icon. Do not ask for an additional confirmation during the normal path. The user's explicit folder path is the authorization to operate on that folder's icon metadata.
+Detect file access, a command runner, Python 3, preview viewing, host OS, and native build availability independently. Skill loading does not supply these capabilities. If Python is present, run [scripts/install-self-test.py](scripts/install-self-test.py) with `--stage preflight`; native-ready proves compilation only. Actual extraction must succeed to establish Vision availability.
 
-The only intended external mutation is the target folder's custom icon metadata. Never create, delete, rename, move, overwrite, or permission-change ordinary files or subfolders inside the target folder. macOS may create icon-related system metadata such as `Icon\r` or `.DS_Store`.
+- With Python but without local macOS extraction: accept only a PNG that passes the portable gate and actual preview review. Reject JPEG and request a transparent PNG or a Mac with the bundled Vision/ImageIO pipeline.
+- Without Python, file access, or a way to view previews: stop automatic processing and application. Ask for an already verified transparent PNG and completion in an environment that can run the gate. A filename, claimed transparency, or checkerboard screenshot is not evidence.
+- macOS writes require Python 3, the packaged native sources, working Apple Command Line Tools and NSWorkspace permission. Other operating systems can validate PNGs but cannot set a remote Mac's Finder metadata.
+- Do not install dependencies implicitly or substitute an unverified image tool when native extraction fails.
 
-## Default Image Policy
+## Prepare and review — mandatory for both routes
 
-Use the whole input image as the icon by default. Decode it and normalize it to a PNG in a temporary directory without overwriting the original. Preserve the source image.
+Run [scripts/prepare-icon.py](scripts/prepare-icon.py) with the absolute input path and a **new staging directory outside the target**. This preserves the original, uses existing Vision extraction and ImageIO normalization for JPEG on capable Macs, rejects JPEG elsewhere, quarantines technical failures, and exports review previews. A PNG fallback must be 8-bit RGBA, noninterlaced, at most 2048 px per side; unsupported encodings are rejected, never presumed safe.
 
-Do not pause for subject selection, text classification, candidate numbering, or a composite preview in the default path. Background removal is optional and must be explicitly requested or configured; if used, it must finish without user selection. A failed or ambiguous background-removal result is a failure, not a reason to guess.
+Read [references/quality-gate.md](references/quality-gate.md). Real alpha, bounded coverage, transparent canvas edges, connected-component/color rectangle checks, isolated edge pixels and visual review are all mandatory. **Technical pass alone cannot authorize output or application.** Review the source alongside the candidate on light, dark and checker backgrounds at 1024, 128 and 64 px. Inspect the white folder's interior as well as its silhouette: no purple rectangle, source-colored pixels, text or unwanted composition may remain. Check subject integrity and color fringes. When uncertain, reject or leave quarantined; do not select, offer as final, apply, or provide a manual application command.
 
-## Automatic Workflow
+After actually viewing the previews, record the review described in the reference at `<candidate.png>.review.json`, bound to that candidate's SHA-256. Do not fabricate or auto-fill visual approval from technical scores. A user selecting a filename, target folder, or proposed concept does not by itself approve the review fields. A user who can view the previews may perform the review when the agent cannot; otherwise stop. Run [scripts/portable-icon-gate.py](scripts/portable-icon-gate.py) on the candidate with `--require-review`; only `status=passed` is eligible for delivery/application. Any modification invalidates the review and requires checking again. Even a small background patch below the automatic detector threshold must be rejected in the actual preview review; a technical pass cannot substitute for explicit visual approval.
 
-Run the following sequence through the packaged scripts/native tools:
+## Material pack
 
-1. Validate that the image is readable and the target is an existing ordinary local folder.
-2. Normalize the image to a valid PNG outside the target folder.
-3. Snapshot ordinary target contents before the icon update.
-4. Use the native `NSWorkspace.setIcon` helper as the primary backend.
-5. Read back the folder icon and verify that it changed as a result of this invocation.
-6. Snapshot ordinary target contents again and verify that they are unchanged.
-7. Return `成功` only when the icon update and contents verification both pass.
+Only when requested, read [references/material-pack.md](references/material-pack.md). Use the same mandatory candidate gate. The deterministic MVP builder is a test fixture generator, not a general image-generation capability. It may only run with its explicit fixture-only switch and may never be used with user photos or as a source of deliverable artwork. If no approved image-generation or image-editing capability is available, report that limitation; do not install a dependency, write an ad-hoc crop/mask pipeline, or substitute an unverified image tool.
 
-The normal entry point is:
+The 15–72% visible-coverage check detects opaque backdrops and background residue. It is not an art direction, and it does not require or prefer circles, circular crops, masks, rounded rectangles, or any other shape. Preserve the user's explicitly requested composition. Do not add a crop, mask, frame, or shape treatment unless the user expressly asks for it and the current image tool can produce and preview it.
 
-```sh
-python3 /absolute/path/to/scripts/apply-icon.py /absolute/path/to/image /absolute/path/to/folder
-```
+Also review all icons with the wallpaper for consistent palette, medium, contours, texture, lighting and abstraction at native size and 64 px. Record `visual_qa` in `source-pack/visual-qa.json`; run [scripts/qualify-pack.py](scripts/qualify-pack.py) to copy only approved files and their review sidecars into `final-pack/`. Failed candidates go to `source-pack/rejected/`. Show only qualified icons as selectable; then obtain one icon selection and one absolute target path.
 
-Use the actual two user-provided paths. The script owns image normalization, helper setup, icon application, contents verification, and the Terminal handoff output.
+## Apply
 
-Do not run installation self-tests on every normal task. Use `references/install-validation.md` and `scripts/install-self-test.py` only after installation, after a skill update, or when the cached host capability is missing or stale. Building a missing native helper during the task is allowed; it must be built from the packaged source and its result must be checked before use.
-
-## Target Safety Checks
-
-The target must be revalidated immediately before the write. Reject it if it is:
-
-- a file, symbolic link, package, application, disk, mount point, network volume, or special object;
-- the root directory, a protected system directory, or a path that changed since input validation;
-- inaccessible for icon metadata modification.
-
-The native setter must enforce these checks itself. Do not rely only on Agent instructions or the wrapper, because the helper can be invoked directly.
-
-## Failure and Terminal Handoff
-
-Return exactly one of these high-level statuses:
-
-- `成功`: icon update verified and ordinary contents unchanged.
-- `失败`: no safe automatic completion; provide a specific reason.
-- `失败-等待Terminal`: the final PNG exists, the target passed safety checks, and only the current process context was denied icon metadata access.
-- `失败-状态不确定`: an update may have occurred but the final state cannot be verified. Do not generate a blind retry command.
-
-For `失败-等待Terminal`, output a shell-quoted command that the user can paste into the already signed-in `Terminal.app`:
+State the qualified image, confirmed target and icon-metadata-only scope before writing. Existing authorization remains valid. Run:
 
 ```sh
-sh '/absolute/path/to/scripts/terminal-apply.sh' '/absolute/path/to/final.png' '/absolute/path/to/confirmed/folder'
+python3 /absolute/installed/skill/scripts/apply-icon.py /absolute/approved.png /absolute/ordinary-folder
 ```
 
-The command must use the actual absolute paths and must not place generated files inside the target folder. Wait for `icon_status=verified` from Terminal before reporting the handoff as successful. A Terminal permission error remains a failure.
+The adjacent `approved.png.review.json` is required. Both wrapper and native writer enforce the shared gate and bind the actual loaded bytes to its approved SHA-256. Promotion revalidates staged byte snapshots before atomic publication. A source/review change after QA must stop or quarantine the candidate. Never use an old cached writer, bypass QA via Finder/clipboard, edit checks to force acceptance, or apply the original JPEG. Rebuild after moving/updating an installation; compiled tools are local build products, not portable package resources.
 
-Do not output a Terminal command when the image is invalid, the target is unsafe or ambiguous, the final PNG does not exist, ordinary contents changed, or the icon state is uncertain.
+Success requires NSWorkspace write and readback; `already_selected` is also a successful no-change result. Permission denial permits Finder manual steps **only for the same qualified PNG**. Uncertain readback/identity means stop without retry/rollback. Report that internal contents were not read or integrity-verified.
 
-## Result Format
+## Validation
 
-Keep the normal report short:
-
-```text
-成功
-文件夹：/absolute/path/to/folder
-图标：已修改并验证
-内容：普通文件和子文件夹未变化
-方式：NSWorkspace.setIcon
-```
-
-For failure, include:
-
-- status;
-- specific reason;
-- target path;
-- final PNG path when one exists;
-- whether icon mutation occurred, failed, or is uncertain;
-- the Terminal command only for `失败-等待Terminal`.
-
-Never claim success from a process exit code alone. The icon readback and ordinary-content check are required.
-
-## Optional Finder Fallback
-
-Finder/clipboard automation is not part of the normal path. Use it only when the native setter is unavailable or the user explicitly requests Finder. The same target safety checks and final verification still apply. If Finder cannot be controlled, return failure with the generated PNG path rather than claiming completion.
-
-## Installation Validation
-
-Installation validation is a maintenance operation, not a per-task prerequisite. File presence means `installed`; the isolated fixture E2E is what proves `verified` for a host and build. Keep the existing self-test for that purpose, but do not make a normal icon replacement wait for it unless the helper or required capability is unavailable.
-
-After this Skill is installed or updated, the Agent must:
-
-1. Run `preflight` without changing a real user folder.
-2. Show the preflight result and explicitly tell the user that installation is not yet `verified`.
-3. Ask the user for authorization to run the isolated E2E test on a temporary fixture copy.
-4. Run `--stage e2e --authorize-e2e` only after the user explicitly authorizes it.
-5. Report `verified` only when that E2E test passes; do not infer verification from file presence, compilation, or preflight alone.
-
-The self-test does not display an authorization dialog by itself. The Agent is responsible for pausing after preflight and requesting this explicit authorization. The authorization applies only to the temporary fixture copy and never to a real user folder.
+Use [references/install-validation.md](references/install-validation.md) and packaged fixtures only. Temporary icon writes are isolated from real user targets. Never mistake test fixture attestations or historical host records for approval of a user's candidate.

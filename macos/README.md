@@ -14,15 +14,17 @@ The build includes:
 - `folder-icon-setter`: applies and reads back a folder icon with `NSWorkspace.setIcon`;
 - `clipboard-bridge`: Finder UI fallback only.
 
-The preferred icon path is:
+The supported application entry is `scripts/apply-icon.py`. The native command below is also guarded by the same Python quality gate and adjacent `.review.json`:
 
 ```sh
 ./folder-icon-setter set-and-verify /absolute/final.png /absolute/folder
 ```
 
-Run it only after the user confirms the exact target and final PNG. The installation E2E test invokes it only on a temporary copy of the bundled fixture.
+Run it only after the user confirms the exact ordinary folder and the PNG passes technical and actual preview review. The writer rejects App bundles. It locates the shared gate from its build source location, so rebuild in the installed package after relocation; do not distribute cached binaries. Python 3 must also be available to the native process. The installation E2E test invokes it only on a temporary copy of the bundled fixture.
 
 ## Clipboard fallback
+
+Legacy clipboard helpers are low-level utilities, not approved application entries. Before any clipboard use, run the shared gate with `--require-review` for the exact PNG; never use them to bypass a rejection.
 
 `ClipboardBridge.swift` writes the selected PNG to `NSPasteboard.general` as
 image data, reads it back, and refuses to report success unless the decoded

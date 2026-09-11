@@ -1,139 +1,37 @@
 #!/usr/bin/env python3
-"""Apply one image as the custom icon of one confirmed macOS folder."""
-
-from __future__ import annotations
-
-import hashlib
-import os
-import shlex
-import shutil
-import stat
-import subprocess
-import sys
-import tempfile
+"""Set a custom icon without accessing the target's internal contents."""
+import importlib, os, subprocess, sys
+gate = importlib.import_module("portable-icon-gate")
 from pathlib import Path
 
-
-def fail(reason: str, *, target: Path, image: Path | None = None, command: str | None = None, code: int = 1) -> int:
-    print("失败")
-    print(f"原因：{reason}")
-    print(f"文件夹：{target}")
-    if image:
-        print(f"最终图片：{image}")
-    print("图标：未确认完成")
-    if command:
-        print("下一步：请将下面命令粘贴到已登录的 Terminal.app 中执行")
-        print(command)
-    return code
-
-
-def snapshot(root: Path) -> dict[str, dict[str, object]]:
-    allowed = {".DS_Store", "Icon\r"}
-    result: dict[str, dict[str, object]] = {}
-    for path in sorted(root.rglob("*")):
-        relative = path.relative_to(root)
-        if len(relative.parts) == 1 and relative.name in allowed:
-            continue
-        info = path.lstat()
-        entry: dict[str, object] = {
-            "kind": stat.filemode(info.st_mode),
-            "mode": stat.S_IMODE(info.st_mode),
-            "mtime_ns": info.st_mtime_ns,
-            "uid": info.st_uid,
-            "gid": info.st_gid,
-        }
-        if path.is_symlink():
-            entry["target"] = os.readlink(path)
-        elif path.is_file():
-            digest = hashlib.sha256()
-            with path.open("rb") as handle:
-                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                    digest.update(chunk)
-            entry.update({"size": info.st_size, "sha256": digest.hexdigest()})
-        result[str(relative)] = entry
-    return result
-
-
-def terminal_command(skill_dir: Path, image: Path, target: Path) -> str:
-    wrapper = skill_dir / "scripts" / "terminal-apply.sh"
-    return "sh " + " ".join(shlex.quote(str(value)) for value in (wrapper, image, target))
-
-
-def main() -> int:
+def fail(reason, target):
+    print(f"失败\n原因：{reason}\n目标：{target}\n图标：未确认完成\n内部内容：未读取、未写入、未执行完整性验证")
+    return 1
+def main():
     if len(sys.argv) != 3:
-        print("usage: apply-icon.py /absolute/path/to/image /absolute/path/to/folder", file=sys.stderr)
-        return 2
-
-    image = Path(sys.argv[1]).expanduser()
-    target = Path(sys.argv[2]).expanduser()
-    skill_dir = Path(__file__).resolve().parent.parent
-    if not image.is_absolute() or not target.is_absolute():
-        return fail("路径必须是绝对路径", target=target)
-    if not image.is_file():
-        return fail("输入图片不存在或不可读", target=target)
-    if not target.is_dir() or target.is_symlink():
-        return fail("目标不是可用的普通文件夹", target=target)
-
-    work_dir = Path(tempfile.mkdtemp(prefix="folder-icon-replacer-"))
-    final_image = work_dir / "final.png"
-    keep_work_dir = True
-    try:
-        if shutil.which("sips") is None:
-            return fail("macOS sips 不可用，无法标准化图片", target=target)
-        converted = subprocess.run(
-            ["sips", "-s", "format", "png", str(image), "--out", str(final_image)],
-            capture_output=True,
-            text=True,
-        )
-        if converted.returncode != 0 or not final_image.is_file():
-            return fail("图片无法转换为 PNG", target=target, image=final_image)
-
-        before = snapshot(target)
-        build_dir = skill_dir / ".build"
-        setter = build_dir / "folder-icon-setter"
-        if not setter.is_file() or not os.access(setter, os.X_OK):
-            build = subprocess.run(
-                ["/bin/sh", str(skill_dir / "scripts" / "build-native-tools.sh"), str(build_dir)],
-                capture_output=True,
-                text=True,
-            )
-            if build.returncode != 0:
-                return fail("native 图标工具构建失败", target=target, image=final_image)
-
-        result = subprocess.run(
-            [str(setter), "set-and-verify", str(final_image), str(target)],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode == 13:
-            return fail(
-                "当前进程没有修改文件夹图标的权限",
-                target=target,
-                image=final_image,
-                command=terminal_command(skill_dir, final_image, target),
-                code=13,
-            )
-        if result.returncode != 0:
-            reason = result.stderr.strip() or "native 图标工具执行失败"
-            return fail(reason, target=target, image=final_image)
-
-        after = snapshot(target)
-        if before != after:
-            return fail("文件夹普通内容发生变化，结果不安全", target=target, image=final_image, code=15)
-
-        print("成功")
-        print(f"文件夹：{target}")
-        print("图标：已修改并验证")
-        print("内容：普通文件和子文件夹未变化")
-        print("方式：NSWorkspace.setIcon")
-        keep_work_dir = False
+        print("usage: apply-icon.py /absolute/path/to/ready-image /absolute/path/to/folder", file=sys.stderr); return 2
+    image, target = Path(sys.argv[1]).expanduser(), Path(sys.argv[2]).expanduser()
+    if not image.is_absolute() or not target.is_absolute(): return fail("路径必须是绝对路径", target)
+    if not image.is_file(): return fail("输入图片不存在或不可读", target)
+    qa = gate.assess(image, Path(str(image) + ".review.json"))
+    if qa["status"] != "passed": return fail("质量门拒绝：" + "; ".join(qa["errors"]), target)
+    if sys.platform != "darwin": return fail("当前主机不能写入 macOS 文件夹图标；请在 Mac 上使用已验证 PNG", target)
+    try: info = os.lstat(target)
+    except OSError as error: return fail(f"目标不可访问：{error.strerror or error}", target)
+    if not os.path.isdir(target): return fail("目标不是普通文件夹", target)
+    skill = Path(__file__).resolve().parent.parent; build = skill / ".build"; setter = build / "folder-icon-setter"
+    if not setter.is_file() or not os.access(setter, os.X_OK) or setter.stat().st_mtime < (skill / "macos" / "FolderIconSetter.m").stat().st_mtime:
+        made = subprocess.run(["/bin/sh", str(skill / "scripts" / "build-icon-setter.sh"), str(build)], text=True, capture_output=True)
+        if made.returncode: return fail("原生图标工具构建失败", target)
+    result = subprocess.run([str(setter), "set-and-verify", str(image), str(target), str(info.st_dev), str(info.st_ino), qa["sha256"]], text=True, capture_output=True)
+    if result.returncode == 0:
+        print(f"成功\n目标：{target}\n{result.stdout.strip()}\n内部内容：未读取、未写入、未执行完整性验证\n恢复默认图标：Finder 显示简介中选中顶部小图标后按 Delete。")
         return 0
-    except (OSError, subprocess.SubprocessError) as exc:
-        return fail(f"执行异常：{exc}", target=target, image=final_image)
-    finally:
-        if not keep_work_dir:
-            shutil.rmtree(work_dir, ignore_errors=True)
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+    if result.returncode == 13:
+        print(f"失败\n原因：当前进程没有修改图标元数据的权限\n目标：{target}\n下一步：请在 Finder 中选中目标，按 Command + I，选中顶部小图标后粘贴准备好的图片。")
+        return 13
+    if result.returncode == 14:
+        print(f"不确定\n原因：{result.stderr.strip() or '图标写入后无法确认'}\n目标：{target}\n图标：未确认完成\n内部内容：未读取、未写入、未执行完整性验证")
+        return 14
+    return fail(result.stderr.strip() or "原生图标工具执行失败", target)
+if __name__ == "__main__": raise SystemExit(main())

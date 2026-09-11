@@ -1,44 +1,29 @@
-# Installation Validation Protocol
+# Installation validation
 
-An installed Skill is not considered verified until the host-specific installation self-test passes.
+Use the installed complete package. No test needs the author's workspace or a real user folder.
 
-## States
-
-- `installed`: package files are present; runtime capabilities are not yet proven.
-- `native-ready`: package integrity, fixtures, native compilation, and JPG decoding passed, but Apple Vision must be retried in the signed-in GUI session because the host process cannot access its ANE model.
-- `capability-ready`: all `native-ready` checks plus Apple Vision extraction, candidate naming, and transparent PNG validation passed without changing a folder icon.
-- `icon-write-ready`: image capability checks passed and `NSWorkspace.setIcon` successfully updated only a temporary fixture copy; this does not authorize a real user folder.
-- `icon-write-unavailable`: image capability checks passed but the temporary icon-write probe was rejected by macOS or the host process; automatic folder replacement is not verified.
-- `terminal-handoff-required`: WorkBuddy cannot write the icon in its background process; the packaged Terminal wrapper must be run in a signed-in GUI Terminal context.
-- `authorization-required`: the next test changes only the icon metadata of a temporary fixture copy and requires explicit user approval.
-- `verified`: the isolated end-to-end icon test passed and ordinary fixture contents remained unchanged.
-- `partial`: a documented optional capability is unavailable, while a supported degraded route remains.
-- `failed`: a required invariant failed; do not claim the Skill is ready.
-
-## Commands
-
-Run the no-user-folder-side-effect stage immediately after installation:
+Portable tests require only Python 3 and the standard library:
 
 ```sh
-python3 scripts/install-self-test.py --stage preflight --host codex --host-version <version>
+python3 tests/test_portable_icon_gate.py
+python3 tests/test_pack_qualification.py
+python3 tests/test_route_pack_fixtures.py
+python3 tests/test_pack_route.py
+python3 scripts/install-self-test.py --stage preflight
 ```
 
-Show the resulting report and ask the user before the next command. After explicit approval:
+Portable fixtures cover opaque and padded rectangles, purple rectangle inside a white subject, isolated/edge pixels, corrupt PNG, missing/stale visual records, clean transparent PNG and JPEG rejection with transparent-PNG guidance. Positive synthetic attestations in tests are not approval of user images.
+
+On a capable Mac, with authorization to write a temporary fixture's icon:
 
 ```sh
-python3 scripts/install-self-test.py --stage e2e --authorize-e2e --host codex --host-version <version>
+python3 tests/test_native_gate.py
+python3 tests/test_mvp_builder_guard.py
+python3 scripts/install-self-test.py --stage e2e --authorize-e2e
+python3 scripts/run-mvp-validation.py --runtime /absolute/new-test-runtime --output /absolute/new-test-output
+python3 scripts/prepare-icon.py tests/skill-test-image.jpg /absolute/new-jpeg-staging
 ```
 
-Replace the host fields for WorkBuddy or another host. Never reuse a verification receipt from another host, Mac, Skill version, or native helper build.
+The native e2e uses a synthetic transparent PNG, never raw JPEG. The MVP retains direct PNG, generated-pack, route and unsafe-target checks using local copies of packaged fixtures. JPEG preparation retains the real Vision → ImageIO normalization → technical QA → awaiting visual review chain; then actually inspect previews before recording review or attempting isolated application. A failed extraction is a failure with safe fallback, not a skipped success.
 
-## Authorization Boundary
-
-The `--authorize-e2e` flag authorizes launching the packaged background-only extractor in the signed-in GUI session when the host process cannot access Apple Vision, plus a custom-icon change on a temporary copy of `tests/icon-replacement-test-folder`. It does not authorize changing a user folder, installing network dependencies, enabling broad macOS privacy permissions, or controlling Finder UI.
-
-If the host requires a macOS permission prompt, explain the exact permission and why it is needed before asking the user. Refusal leaves the installation at `authorization-required`, `icon-write-unavailable`, `terminal-handoff-required`, or `partial`; it does not erase the installed files. A WorkBuddy background-process denial must not be fixed by repeating the same command in that process.
-
-## Report Requirements
-
-The JSON report records the Skill version and path, host and host version, macOS version, architecture, execution context, fixture hashes, native helper hashes, completed checks, icon-write probe result, required authorizations, errors, and next action. Preflight reports are temporary by default. An authorized successful E2E writes a durable receipt under `~/Library/Application Support/folder-icon-replacer/verification/`; this receipt write is part of the disclosed E2E authorization.
-
-Only `installation_status=verified` is a complete installation verification result.
+`native-ready` proves compilation only; `verified` requires icon write/readback and fixture-only content comparison. Production code never performs that content comparison. Test-created files belong in the chosen test directory; do not use real target folders as permission probes.

@@ -1,53 +1,9 @@
-# WorkBuddy Compatibility Test
+# WorkBuddy compatibility
 
-## Status
+当前结论：官方安装方式已核实，客户端内导入、预览能力和隔离写入尚未实测，不能标记端到端兼容已验证。
 
-图片处理已验证；WorkBuddy 后台进程的真实文件夹图标写入仍需单独验证。
+使用 [三端安装说明](platform-install.md) 的“技能 → 添加技能 → 上传技能”，确认完整包导入且已启用，再开新任务验证新版指令。未核实固定磁盘根，因此不提供目录安装命令。历史 2026-08-26 版本与图片处理记录不代表本版本可在 WorkBuddy 后台写入。
 
-## Environment Check (2026-08-26)
+首先运行 portable 回归和 preflight；有 macOS 能力时，在用户授权的临时夹具中运行 e2e。JPEG 无提取能力必须拒绝；透明 PNG 仍需技术 QA 和实际预览审查。缺少任一条件不应伪造成功或尝试临时安装 rembg。
 
-- WorkBuddy 已安装：`/Applications/WorkBuddy.app`
-- 检测到版本：`5.3.11`
-- Bundle ID：`com.workbuddy.workbuddy`
-- 未发现 `workbuddy` 或 `wb` 命令行入口。
-- 初次仅在应用包内查找 Skill 入口，未发现结果；这不是有效的兼容性否定依据。
-- 应用检查时未运行。
-- 官方文档显示 WorkBuddy/CodeBuddy 支持 `SKILL.md`，工作区 Skill 路径为 `.codebuddy/skills/<skill-name>/SKILL.md`，并支持在设置页通过“导入 Skill”导入网络获取的 Skill。
-- 结论：已确认存在可复核的加载方案，但尚未在本机 WorkBuddy 中实际导入和运行，因此仍未验证端到端兼容性。
-- 既有实测显示 WorkBuddy 临时安装 `rembg` 时受 NumPy/PyPI 网络与 SSL 问题阻断；1.1.0 已取消主流程中的隐式依赖安装。
-- 1.1.0 适配入口使用 `${CODEBUDDY_SKILL_DIR}/../../../SKILL.md`，已在项目布局中完成路径解析检查。
-
-## Root Cause of Earlier Blocker
-
-此前只检查了 `/Applications/WorkBuddy.app` 的应用包和本地命令行入口，忽略了 WorkBuddy 的工作区目录和设置页导入机制。应用包中没有 Skill 文件并不能推出 WorkBuddy 不支持 Skill。
-
-## Officially Supported Loading Paths to Test
-
-1. 通过 WorkBuddy 设置页的“导入 Skill”导入该 Skill 文件夹或压缩包。
-2. 在测试工作区内放置 `.codebuddy/skills/mac-folder-icon-replacer/SKILL.md`，从该工作区启动任务。
-
-加载后先运行：
-
-`python3 scripts/install-self-test.py --stage preflight --host workbuddy --host-version 5.3.11`
-
-展示 JSON 报告并获得用户明确授权后，才运行带 `--authorize-e2e` 的隔离端到端测试。
-
-重点检查报告中的 `checks.icon_write`：
-
-- `verified` 表示当前 WorkBuddy 进程对临时夹具具备 `NSWorkspace.setIcon` 写入能力。
-- `blocked` 或 `nsworkspace_rejected_icon_update` 表示图片能力可用，但后台进程不能自动写真实文件夹图标；应切换到登录 GUI Terminal 或 Finder 手动粘贴。
-- WorkBuddy 遇到该状态时应提供 `scripts/terminal-apply.sh` 的完整命令；用户在登录的 Terminal.app 中执行，并将包含 `icon_status=verified` 的输出返回给 WorkBuddy。
-- 不能因为 Apple Vision 和透明 PNG 验证通过，就把 WorkBuddy 标记为完整自动化可用。
-
-## Required Evidence
-
-完成统一验收项后，补充：
-
-- WorkBuddy 版本或运行环境
-- macOS 版本
-- Skill 加载方式
-- 图像处理能力及输出文件路径
-- Finder、剪贴板和辅助功能权限结果
-- 目标文件夹图标更新证据
-- 普通文件和嵌套目录变更前后对比
-- 失败项、人工介入点和最终兼容性结论
+需收集：WorkBuddy 版本、系统版本、导入方式、实际根 SKILL.md 路径、Python/native/preview 能力、坏图拒绝结果、好图审查与隔离写入读回结果、普通夹具内容比较。不读取真实目标内容。
