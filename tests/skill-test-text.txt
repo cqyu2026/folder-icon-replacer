@@ -1,1 +1,0 @@
-This is a fixed text resource for testing the skill installation.

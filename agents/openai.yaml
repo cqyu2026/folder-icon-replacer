@@ -1,4 +1,0 @@
-interface:
-  display_name: "Mac Folder Icon Replacer"
-  short_description: "Create a matching icon pack or replace one macOS folder icon"
-  default_prompt: "Use $mac-folder-icon-replacer to either use my image directly or generate a matching icon pack, then safely replace one confirmed macOS folder icon."

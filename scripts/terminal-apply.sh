@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
-skill_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-command -v python3 >/dev/null 2>&1 || { echo "需要 Python 3 执行质量门；请在具备验证能力的 Mac 上运行。" >&2; exit 1; }
-exec python3 "$skill_dir/scripts/apply-icon.py" "$@"
+[ "$(uname -s)" = Darwin ] || { echo '仅支持 macOS 本机。' >&2; exit 1; }
+command -v python3 >/dev/null 2>&1 || { echo '缺少 Python 3，请配置后再运行。' >&2; exit 1; }
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec python3 "$script_dir/icons.py" apply "$@"

@@ -1,2 +1,0 @@
-This file belongs to the folder icon replacement test fixture.
-Its content must remain unchanged.

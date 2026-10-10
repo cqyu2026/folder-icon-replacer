@@ -1,51 +1,47 @@
 ---
-name: mac-folder-icon-replacer
-description: Set one confirmed ordinary macOS folder's custom icon from a verified transparent PNG, or extract a JPEG subject using available macOS tools. Also supports explicitly requested matching icon packs. Reject background residue before delivery or application.
+name: folder-icon-replacer
+description: 在 macOS 上根据图片制作 9 个统一风格的图标。先展示编号 01–09 的九宫格供用户确认，再生成独立透明 PNG，交付后按用户指定的编号和文件夹路径设置图标。
 ---
 
-# Mac Folder Icon Replacer
+# Folder Icon Replacer
 
-Use the installed directory containing this file as the package root. All linked scripts and resources are relative to it; do not assume a project checkout, a host-specific environment variable, or a particular agent tool name. Read [platform installation](compatibility/platform-install.md) when installing or diagnosing discovery.
+仅在 macOS 本机使用。开始前确认本机系统、图像生成/编辑、文件访问与预览能力。使用当前环境已提供的工具与模型；Skill 不自带生图能力。所有输入副本、中间图、最终图与检查报告放在用户指定的输出目录，保留原图。以下路径相对本 Skill 根目录。
 
-## Scope and capabilities
+## 1. 看图与选路线
 
-Use one readable local image and one user-confirmed absolute ordinary folder path. If the user has not chosen direct image use or a material pack, ask for that choice once. An existing choice or explicit direct replacement request is sufficient. Do not infer a folder from a suggested icon meaning. Never read, enumerate, or write the target's ordinary contents. Reject App bundles, other packages, protected paths, symlinks, mount points, and nonlocal volumes.
+查看用户输入，读取 [参考与风格](references/design.md)，查看对应的 `assets/elements/` 或 `assets/folders/` 参考图。
 
-Detect file access, a command runner, Python 3, preview viewing, host OS, and native build availability independently. Skill loading does not supply these capabilities. If Python is present, run [scripts/install-self-test.py](scripts/install-self-test.py) with `--stage preflight`; native-ready proves compilation only. Actual extraction must succeed to establish Vision availability.
+- **有可拆解元素**：从主体、局部、物件、动作、场景和情绪线索确定 9 个可辨认的视觉单元。合理语义延伸应仍属于同一画面的记忆，避免无关填充。
+- **无可拆解元素**：提取主色、辅助色与气质，设计 9 个同色系文件夹，以简洁图案和局部装饰区分，保持统一轮廓与材质。
 
-- With Python but without local macOS extraction: accept only a PNG that passes the portable gate and actual preview review. Reject JPEG and request a transparent PNG or a Mac with the bundled Vision/ImageIO pipeline.
-- Without Python, file access, or a way to view previews: stop automatic processing and application. Ask for an already verified transparent PNG and completion in an environment that can run the gate. A filename, claimed transparency, or checkerboard screenshot is not evidence.
-- macOS writes require Python 3, the packaged native sources, working Apple Command Line Tools and NSWorkspace permission. Other operating systems can validate PNGs but cannot set a remote Mac's Finder metadata.
-- Do not install dependencies implicitly or substitute an unverified image tool when native extraction fails.
+输入图决定主题和配色，参考图决定画风。参考图优先；无法输入参考或风格偏离时使用对应兜底提示词，不绑定特定模型，不设固定试生成环节。
 
-## Prepare and review — mandatory for both routes
+## 2. 编号总览与用户确认
 
-Run [scripts/prepare-icon.py](scripts/prepare-icon.py) with the absolute input path and a **new staging directory outside the target**. This preserves the original, uses existing Vision extraction and ImageIO normalization for JPEG on capable Macs, rejects JPEG elsewhere, quarantines technical failures, and exports review previews. A PNG fallback must be 8-bit RGBA, noninterlaced, at most 2048 px per side; unsupported encodings are rejected, never presumed safe.
+直接生成留白充分的 **3×3 总览图**。按从左到右、从上到下标注唯一编号 **01–09**，编号在主体外且清晰可读。保存 `preview.png`，用简短 `design.md` 记录编号内容及共同风格。
 
-Read [references/quality-gate.md](references/quality-gate.md). Real alpha, bounded coverage, transparent canvas edges, connected-component/color rectangle checks, isolated edge pixels and visual review are all mandatory. **Technical pass alone cannot authorize output or application.** Review the source alongside the candidate on light, dark and checker backgrounds at 1024, 128 and 64 px. Inspect the white folder's interior as well as its silhouette: no purple rectangle, source-colored pixels, text or unwanted composition may remain. Check subject integrity and color fringes. When uncertain, reject or leave quarantined; do not select, offer as final, apply, or provide a manual application command.
+总览可有纸感背景、简短手写标题和 caption，不照搬参考中的照片、文字或水印。展示后询问哪些编号需要修改，只改指定编号，保持已满意图标及编号，更新后再次展示。
 
-After actually viewing the previews, record the review described in the reference at `<candidate.png>.review.json`, bound to that candidate's SHA-256. Do not fabricate or auto-fill visual approval from technical scores. A user selecting a filename, target folder, or proposed concept does not by itself approve the review fields. A user who can view the previews may perform the review when the agent cannot; otherwise stop. Run [scripts/portable-icon-gate.py](scripts/portable-icon-gate.py) on the candidate with `--require-review`; only `status=passed` is eligible for delivery/application. Any modification invalidates the review and requires checking again. Even a small background patch below the automatic detector threshold must be rejected in the actual preview review; a technical pass cannot substitute for explicit visual approval.
+**用户明确确定总览后才生成独立 PNG。** 提出修改或选中某个编号不等于确认整套方案。
 
-## Material pack
+## 3. 逐张生成与检查
 
-Only when requested, read [references/material-pack.md](references/material-pack.md). Use the same mandatory candidate gate. The deterministic MVP builder is a test fixture generator, not a general image-generation capability. It may only run with its explicit fixture-only switch and may never be used with user photos or as a source of deliverable artwork. If no approved image-generation or image-editing capability is available, report that limitation; do not install a dependency, write an ad-hoc crop/mask pipeline, or substitute an unverified image tool.
+以已确认总览为直接视觉依据，每次明确目标编号，生成 `icons/01.png` 至 `icons/09.png`。保持对应主题、颜色、形态与纹理，不重新设计。不能读取参考的模型使用对应描述及兜底提示词，并实际对照总览检查。
 
-The 15–72% visible-coverage check detects opaque backdrops and background residue. It is not an art direction, and it does not require or prefer circles, circular crops, masks, rounded rectangles, or any other shape. Preserve the user's explicitly requested composition. Do not add a crop, mask, frame, or shape treatment unless the user expressly asks for it and the current image tool can produce and preview it.
+默认 1024×1024，8-bit RGBA、非交错、每边不超过 2048 px。独立图只保留完整主体，真实透明背景和透明画布边缘，不带编号、文字、网格、水印或纸张背景。纸纹和蜡笔颗粒仅在主体内部。
 
-Also review all icons with the wallpaper for consistent palette, medium, contours, texture, lighting and abstraction at native size and 64 px. Record `visual_qa` in `source-pack/visual-qa.json`; run [scripts/qualify-pack.py](scripts/qualify-pack.py) to copy only approved files and their review sidecars into `final-pack/`. Failed candidates go to `source-pack/rejected/`. Show only qualified icons as selectable; then obtain one icon selection and one absolute target path.
+按 [检查与交付](references/delivery.md) 逐张验证，并实际查看 1024 / 128 / 64 px 浅色、深色和棋盘背景预览。检查主体完整、背景残留、白边、色边、杂点、小尺寸辨识度，以及与确认总览的一致性。只返工失败图；若设计改变，则回到总览确认。脚本通过不代替看图。
 
-## Apply
+## 4. 交付后询问是否替换
 
-State the qualified image, confirmed target and icon-metadata-only scope before writing. Existing authorization remains valid. Run:
+全部通过后交付九张可访问的 `01.png–09.png` 和编号总览，然后询问：
 
-```sh
-python3 /absolute/installed/skill/scripts/apply-icon.py /absolute/approved.png /absolute/ordinary-folder
-```
+> 是否需要替换文件夹图标？如需替换，请输入：文件夹路径 XXXX，替换图片 XXX（01–09）。例如：文件夹路径 `/Users/name/Documents/旅行`，替换图片 `03`。
 
-The adjacent `approved.png.review.json` is required. Both wrapper and native writer enforce the shared gate and bind the actual loaded bytes to its approved SHA-256. Promotion revalidates staged byte snapshots before atomic publication. A source/review change after QA must stop or quarantine the candidate. Never use an old cached writer, bypass QA via Finder/clipboard, edit checks to force acceptance, or apply the original JPEG. Rebuild after moving/updating an installation; compiled tools are local build products, not portable package resources.
+不替换即结束。不从图标名称推断目标路径。用户给出编号和绝对路径后即授权对应单次替换，不重复确认；多个映射须分别明确，拒绝无效编号。
 
-Success requires NSWorkspace write and readback; `already_selected` is also a successful no-change result. Permission denial permits Finder manual steps **only for the same qualified PNG**. Uncertain readback/identity means stop without retry/rollback. Report that internal contents were not read or integrity-verified.
+## 5. macOS 替换与终端兜底
 
-## Validation
+读取 [替换说明](references/apply.md)，调用随包脚本对指定普通本地文件夹设置图标并读回。仅修改图标元数据，不读取或修改普通文件内容。
 
-Use [references/install-validation.md](references/install-validation.md) and packaged fixtures only. Temporary icon writes are isolated from real user targets. Never mistake test fixture attestations or historical host records for approval of a user's candidate.
+agent 无法执行或权限拒绝时，提供同一编号 PNG 与同一目标的可复制终端命令，正确引用中文和空格路径。提供命令不代表替换成功。其他系统不执行此 Skill。
