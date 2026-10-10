@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">Folder Icon Replacer</title>
+  <desc id="desc">Turn one image into a reviewed set of nine hand-drawn macOS folder icons.</desc>
+  <defs>
+    <clipPath id="left-proof"><rect x="684" y="80" width="294" height="294" rx="28"/></clipPath>
+    <clipPath id="right-proof"><rect x="860" y="150" width="294" height="294" rx="28"/></clipPath>
+    <pattern id="alpha" width="20" height="20" patternUnits="userSpaceOnUse">
+      <rect width="20" height="20" fill="#F8FBFA"/>
+      <rect width="10" height="10" fill="#E9F1EF"/>
+      <rect x="10" y="10" width="10" height="10" fill="#E9F1EF"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="520" rx="32" fill="#F4FAF9"/>
+  <rect x="24" y="24" width="1152" height="472" rx="24" fill="none" stroke="#C9E4E1" stroke-width="2"/>
+  <g transform="translate(66 66)" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',sans-serif">
+    <text x="0" y="22" font-size="18" font-weight="700" letter-spacing="2.5" fill="#397A82">MACOS · CODEX SKILL</text>
+    <text x="0" y="92" font-size="54" font-weight="760" fill="#123F61">Folder Icon</text>
+    <text x="0" y="150" font-size="54" font-weight="760" fill="#123F61">Replacer</text>
+    <text x="0" y="204" font-size="25" font-weight="520" fill="#456774">一张图片，九枚图标，一次确认。</text>
+    <text x="0" y="240" font-size="21" fill="#64828B">生成透明 PNG，并替换指定的 macOS 文件夹图标。</text>
+    <g transform="translate(0 288)" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="18">
+      <rect width="474" height="54" rx="14" fill="#123F61"/>
+      <text x="22" y="34" fill="#F4FAF9">图片 → 3×3 预览 → 01–09 PNG → Finder</text>
+    </g>
+    <g transform="translate(0 370)" font-size="17" font-weight="650">
+      <rect width="112" height="38" rx="19" fill="#D6F0ED"/><text x="20" y="25" fill="#27656D">透明背景</text>
+      <rect x="124" width="106" height="38" rx="19" fill="#E3E5F6"/><text x="146" y="25" fill="#515B8B">手绘颗粒</text>
+      <rect x="242" width="112" height="38" rx="19" fill="#DCEBF4"/><text x="263" y="25" fill="#315F7A">仅限 macOS</text>
+    </g>
+  </g>
+  <rect x="650" y="48" width="528" height="424" rx="32" fill="url(#alpha)" opacity=".68"/>
+  <g transform="rotate(-5 831 227)">
+    <rect x="672" y="68" width="318" height="318" rx="32" fill="#FFFFFF" stroke="#B9DCD8" stroke-width="3"/>
+    <image x="684" y="80" width="294" height="294" preserveAspectRatio="xMidYMid slice" clip-path="url(#left-proof)" xlink:href="folder-collection.png"/>
+  </g>
+  <g transform="rotate(4 1007 297)">
+    <rect x="848" y="138" width="318" height="318" rx="32" fill="#FFFFFF" stroke="#ADC9DE" stroke-width="3"/>
+    <image x="860" y="150" width="294" height="294" preserveAspectRatio="xMidYMid slice" clip-path="url(#right-proof)" xlink:href="element-collection.png"/>
+  </g>
+  <g fill="#79D4C8">
+    <path d="M1118 62l5 13 13 5-13 5-5 13-5-13-13-5 13-5z"/>
+    <path d="M642 418l4 10 10 4-10 4-4 10-4-10-10-4 10-4z"/>
+  </g>
+</svg>
